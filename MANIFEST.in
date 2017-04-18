@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+recursive-include nearsight/filters/boundary_polygons *.geojson
+recursive-include nearsight/static *
+recursive-include nearsight/templates *
+recursive-include nearsight/tests *
+recursive-include nearsight/scripts *
