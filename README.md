@@ -9,7 +9,7 @@ Maploom pulls the images from a fileservice that has been added to Exchange. The
 
 
 ## Installation
-NOTE: For this app to be functional, you should add NEARSIGHT_UPLOAD and optionally S3_CREDENTIALS.
+NOTE: For this app to be functional, you should add NEARSIGHT_UPLOAD_PATH and optionally S3_CREDENTIALS.
 ```
 yum install -y git 
 git clone https://github.com/venicegeo/nearsight
@@ -50,9 +50,9 @@ Example:
     }
 ```
             
-##### NEARSIGHT_UPLOAD: (Optional)
+##### NEARSIGHT_UPLOAD_PATH: (Optional)
 A file path where user uploaded files or S3 files will be stored while processing.
-Example: `NEARSIGHT_UPLOAD = '/var/lib/geonode/nearsight_data'`
+Example: `NEARSIGHT_UPLOAD_PATH = '/var/lib/geonode/nearsight_data'`
 
 ##### S3_CREDENTIALS: (Optional)
 Configuration to pull data from an S3 bucket.
@@ -66,7 +66,7 @@ Example:
     }]
 ```
 
-##### --- NOTE: For this app to be functional, you should add at least one of the options: NEARSIGHT_API_KEYS, NEARSIGHT_UPLOAD, or S3_CREDENTIALs ---
+##### --- NOTE: For this app to be functional, you should add at least one of the options: NEARSIGHT_API_KEYS, NEARSIGHT_UPLOAD_PATH, or S3_CREDENTIALs ---
 
 ##### INSTALLED_APPS: (Required)
 The name of this app must be added to the installed_app variable so it can run as part of the host django project.
@@ -132,7 +132,7 @@ Filters are available to reduce the amount of undesired redundant data on your r
 To import data you can (all of which will be run through existing filters):
  - upload a geojson zip archive from NearSight through the nearsight_viewer.
  - Enter S3 Credentials to automatically download zip archives from an S3 bucket(s).
- Note that zip files are extracted and imported.  Extracted files are deleted but zip files are left in the NEARSIGHT_UPLOAD folder.
+ Note that zip files are extracted and imported.  Extracted files are deleted but zip files are left in the NEARSIGHT_UPLOAD_PATH folder.
 
 ## Celery Tasks
  - 'nearsight.tasks.task_filter_assets'

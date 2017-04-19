@@ -32,7 +32,7 @@ if not nearsight_media_dir:
         os.mkdir(os.path.join(os.getcwd(), 'media'))
     nearsight_media_dir = os.path.join(os.getcwd(), 'media')
 
-nearsight_data_dir = getattr(settings, 'NEARSIGHT_UPLOAD', None)
+nearsight_data_dir = getattr(settings, 'NEARSIGHT_UPLOAD_PATH', None)
 if not nearsight_data_dir:
     nearsight_data_dir = getattr(settings, 'MEDIA_ROOT', None)
 if not nearsight_data_dir:
