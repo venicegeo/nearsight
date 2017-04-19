@@ -27,7 +27,7 @@ import os
 #     }
 # }
 
-NEARSIGHT_UPLOAD = os.getenv("NEARSIGHT_UPLOAD")
+NEARSIGHT_UPLOAD_PATH = os.getenv("NEARSIGHT_UPLOAD_PATH")
 NEARSIGHT_LAYER_PREFIX = os.getenv("NEARSIGHT_LAYER_PREFIX")
 NEARSIGHT_CATEGORY_NAME = os.getenv('NEARSIGHT_CATEGORY_NAME', 'NearSight')
 NEARSIGHT_GEONODE_RESTRICTIONS = os.getenv('NEARSIGHT_GEONODE_RESTRICTIONS', "NearSight Data")
@@ -45,7 +45,7 @@ S3_CREDENTIALS = [
 #Define the cache to be used. Memcache is suggested, but other process safe caches can be used too (e.g. file or database)
 # CACHES['nearsight'] = CACHES.get('nearsight', {
 #         'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-#         'LOCATION': NEARSIGHT_UPLOAD,
+#         'LOCATION': NEARSIGHT_UPLOAD_PATH,
 # })
 # CACHES['default'] = CACHES.get('default', CACHES.get('nearsight'))
 

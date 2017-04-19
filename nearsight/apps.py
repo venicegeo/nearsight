@@ -59,7 +59,7 @@ class NearSightConfig(AppConfig):
         except:
             logger.error("Unknown Error: ", exc_info())
             return
-        if not getattr(settings, 'NEARSIGHT_UPLOAD'):
+        if not getattr(settings, 'NEARSIGHT_UPLOAD_PATH'):
             raise Exception("NearSight requires an upload directory.")
 
 

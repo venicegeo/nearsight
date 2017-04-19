@@ -37,10 +37,10 @@ def is_loaded(file_name):
 
 
 def s3_download(s3_bucket_object, s3_file):
-    if os.path.exists(os.path.join(settings.NEARSIGHT_UPLOAD, s3_file.key)):
-        if s3_file.size == int(os.path.getsize(os.path.join(settings.NEARSIGHT_UPLOAD, s3_file.key))):
+    if os.path.exists(os.path.join(settings.NEARSIGHT_UPLOAD_PATH, s3_file.key)):
+        if s3_file.size == int(os.path.getsize(os.path.join(settings.NEARSIGHT_UPLOAD_PATH, s3_file.key))):
             return True
-    s3_bucket_object.download_file(s3_file.key, os.path.join(settings.NEARSIGHT_UPLOAD, s3_file.key))
+    s3_bucket_object.download_file(s3_file.key, os.path.join(settings.NEARSIGHT_UPLOAD_PATH, s3_file.key))
     return True
 
 
