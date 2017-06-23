@@ -17,6 +17,7 @@ from .forms import UploadNearSightData
 from .filters.run_filters import check_filters
 from django.http import HttpResponse
 from django.conf import settings
+from .nearsight import nearsight_status
 import json
 import logging
 
@@ -89,3 +90,8 @@ def viewer(request):
 def layers(request):
     from .mapping import get_layer_names
     return HttpResponse(json.dumps(get_layer_names()), content_type="application/json")
+
+
+def status_request(request):
+    if request.method == 'GET':
+        return HttpResponse(json.dumps(nearsight_status), content_type="application/json")

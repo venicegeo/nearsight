@@ -40,6 +40,9 @@
 		
 		// Empty layer list for any user uploaded layers //
 		var layers = {};
+
+		//id to keep track of interval function for retrieving nearsight status
+		var nearsightStatusIntervalId = -1;
 		
 		// Create divisions in the layer control //
 		var overlays = {
@@ -745,11 +748,28 @@
 		function progressFinishedFunction(e) {
 			if(e.lengthComputable){
 				if(e.loaded == e.total) {
-					$("#formContainer").dialog("close");
+					//$("#formContainer").dialog("close");
+					nearsightStatusIntervalId = setInterval(getNearsightStatus, 1000)
 					$('progress').attr({value: 0.0, max: 1.0});
 					document.getElementById('waiting').style.visibility = 'visible';
 				}
 			}
+		}
+
+		function getNearsightStatus() {
+		  $.ajax({
+				url: '/nearsight_status_request',
+				type: 'GET',
+				processData: false,
+				success: function (result) {
+					//console.log('result '+result);
+					$('#nearsightStatus').html(result["status"]);
+					if(typeof result["progress"] != "undefined" && result["progress"] != null) {
+						$('progress').attr({value: result["progress"]["completed"], max: result["progress"]["total"]});
+					}
+				}
+			});
+
 		}
 		
 		// Upload dialog box //

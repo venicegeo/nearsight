@@ -32,10 +32,11 @@ from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 import logging
 import subprocess
+import uuid
 from httplib import ResponseNotReady
 
 logger = logging.getLogger(__name__)
-
+nearsight_status = {"status": ""}
 
 class NearSight:
 
@@ -188,7 +189,9 @@ def process_nearsight_data(f, request=None):
     Returns:
         An array layers from the zip file if it is successfully uploaded.
     """
+    global nearsight_status
     layers = []
+
     try:
         archive_name = f.name
     except AttributeError:
@@ -206,6 +209,7 @@ def process_nearsight_data(f, request=None):
                         # handled implicitly with geogig.
                         continue
                     logger.info("Uploading the geojson file: {}".format(os.path.abspath(os.path.join(folder, filename))))
+                    nearsight_status["status"] = "Uploading the geojson file: {}".format(os.path.abspath(os.path.join(folder, filename)))
                     if upload_geojson(file_path=os.path.abspath(os.path.join(folder, filename)), request=request):
                         layers += [os.path.splitext(filename)[0]]
         shutil.rmtree(os.path.splitext(file_path)[0])
@@ -220,9 +224,10 @@ def filter_features(features, **kwargs):
     Returns:
         The filtered features and the feature count as a tuple.
     """
-
+    global nearsight_status
+    nearsight_status["status"] = "Running filters on features (this may take awhile)"
     filtered_features, filtered_feature_count = run_filters.filter_features(features, **kwargs)
-
+    nearsight_status["status"] = "{} features passed the filter".format(filtered_feature_count)
     return filtered_features, filtered_feature_count
 
 
@@ -255,7 +260,9 @@ def save_file(f, file_path):
 
 def unzip_file(file_path):
     import zipfile
+    global nearsight_status
     logger.info("Unzipping the file: {}".format(file_path))
+    nearsight_status["status"] = "Unzipping the file: {}".format(file_path)
     unzip_path = os.path.join(get_data_dir(), os.path.splitext(file_path)[0])
     with zipfile.ZipFile(file_path) as zf:
         zf.extractall(unzip_path)
@@ -312,6 +319,8 @@ def upload_geojson(file_path=None, geojson=None, request=None):
 
     id_field = get_feature_id_fieldname(features[0])
     nearsight_id = get_nearsight_id_fieldname()
+    global nearsight_status
+    nearsight_status["progress"] = { "total": len(features), "completed": 0 }
     for feature in features:
         if not feature:
             continue
@@ -361,6 +370,7 @@ def upload_geojson(file_path=None, geojson=None, request=None):
                       feature)
         uploads += [feature]
         count += 1
+        nearsight_status["progress"]["completed"] = count
 
     try:
         database_alias = 'nearsight'
@@ -465,8 +475,14 @@ def write_feature(key, version, layer, feature_data):
     Returns:
         The feature model object.
     """
+    global nearsight_status
+
+    if key is None:
+        key = uuid.uuid4()
+
     with transaction.atomic():
         logger.debug("write_feature({0}, {1}, {2}, {3})".format(key, version, layer, feature_data))
+        nearsight_status["status"] = "writing feature: {0} for layer: {1}".format(key, layer.layer_name)
         feature, feature_created = Feature.objects.get_or_create(feature_uid=key,
                                                                  feature_version=version,
                                                                  defaults={'layer': layer,

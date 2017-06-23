@@ -25,6 +25,7 @@ urlpatterns = [
     url(r'^nearsight_map$', views.viewer),
     url(r'^nearsight_viewer$', views.viewer),
     url(r'^nearsight_upload$', views.upload),
-    url(r'^nearsight_layers$', views.layers)
+    url(r'^nearsight_layers$', views.layers),
+    url(r'^nearsight_status_request$', views.status_request)
 ]
 
