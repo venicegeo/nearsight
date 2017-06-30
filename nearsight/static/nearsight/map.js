@@ -762,10 +762,26 @@
 				type: 'GET',
 				processData: false,
 				success: function (result) {
-					//console.log('result '+result);
+					//display messages
 					$('#nearsightStatus').html(result["status"]);
+
+					//update progress bard
 					if(typeof result["progress"] != "undefined" && result["progress"] != null) {
+						if(result["progress"]["total"] == 0)
+							$('progress').css("visibility", "hidden");
+						else
+							$('progress').css("visibility", "visible");
 						$('progress').attr({value: result["progress"]["completed"], max: result["progress"]["total"]});
+					} else {
+						$('progress').css("visibility", "hidden");
+					}
+
+					//handle error or success messages
+					if ( result["status"].indexOf('Error') != -1) {
+						$('#nearsightStatus').css('color', 'red');
+						//hide the turning gear
+						$('#waiting').css("visibility", "hidden");
+						clearInterval(nearsightStatusIntervalId);
 					}
 				}
 			});

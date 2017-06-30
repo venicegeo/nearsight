@@ -212,6 +212,8 @@ def process_nearsight_data(f, request=None):
                     nearsight_status["status"] = "Uploading the geojson file: {}".format(os.path.abspath(os.path.join(folder, filename)))
                     if upload_geojson(file_path=os.path.abspath(os.path.join(folder, filename)), request=request):
                         layers += [os.path.splitext(filename)[0]]
+                    else:
+                        return None
         shutil.rmtree(os.path.splitext(file_path)[0])
     return layers
 
@@ -311,6 +313,7 @@ def upload_geojson(file_path=None, geojson=None, request=None):
 
     uploads = []
     count = 0
+    total = len(features)
     file_basename = os.path.splitext(os.path.basename(file_path))[0]
     layer, created = write_layer(name=file_basename)
     media_keys = get_update_layer_media_keys(media_keys=find_media_keys(features), layer=layer)
@@ -318,9 +321,12 @@ def upload_geojson(file_path=None, geojson=None, request=None):
     prototype = get_prototype(field_map)
 
     id_field = get_feature_id_fieldname(features[0])
+    #logger.error("feature id is "+id_field)
+    #return
+
     nearsight_id = get_nearsight_id_fieldname()
     global nearsight_status
-    nearsight_status["progress"] = { "total": len(features), "completed": 0 }
+    nearsight_status["progress"] = { "total": total, "completed": 0 }
     for feature in features:
         if not feature:
             continue
@@ -364,6 +370,7 @@ def upload_geojson(file_path=None, geojson=None, request=None):
             feature['properties'][nearsight_id] = feature.get('properties').get('id')
         feature['properties'].pop(id_field, None)
 
+        nearsight_status["status"] = "writing feature: {0} of {1} for layer: {2}".format(count+1, total, layer.layer_name)
         write_feature(feature.get('properties').get(nearsight_id),
                       feature.get('properties').get('version'),
                       layer,
@@ -372,6 +379,9 @@ def upload_geojson(file_path=None, geojson=None, request=None):
         count += 1
         nearsight_status["progress"]["completed"] = count
 
+    # reset progress indicator
+    nearsight_status["progress"] = { "total": 0, "completed": 0 }
+
     try:
         database_alias = 'nearsight'
         connections[database_alias]
@@ -379,9 +389,17 @@ def upload_geojson(file_path=None, geojson=None, request=None):
         database_alias = None
 
     table_name = layer.layer_name
+    nearsight_status["status"] = "uploading features to GeoServer..."
     if upload_to_db(uploads, table_name, media_keys, database_alias=database_alias):
+        nearsight_status["status"] = "publishing layer to GeoServer ..."
         gs_layer, _ = publish_layer(table_name, database_alias=database_alias)
+        if gs_layer is None:
+            nearsight_status["status"] = "Error: publishing layer to GeoServer failed"
+            return False
+        nearsight_status["status"] = "updating GeoNode layers..."
         update_geonode_layers(gs_layer, request=request)
+    else:
+        nearsight_status["status"] = "upload to GeoServer failed"
     return True
 
 
@@ -482,7 +500,6 @@ def write_feature(key, version, layer, feature_data):
 
     with transaction.atomic():
         logger.debug("write_feature({0}, {1}, {2}, {3})".format(key, version, layer, feature_data))
-        nearsight_status["status"] = "writing feature: {0} for layer: {1}".format(key, layer.layer_name)
         feature, feature_created = Feature.objects.get_or_create(feature_uid=key,
                                                                  feature_version=version,
                                                                  defaults={'layer': layer,
@@ -494,8 +511,22 @@ def get_feature_id_fieldname(feature):
     default_id = 'id'
     if not feature:
         return default_id
-    for property in feature.get('properties'):
+
+    properties = feature.get('properties')
+
+    # first look for fulcrum_id as this is the most likely candidate
+    if properties.get('fulcrum_id') is not None:
+        logger.debug("Feature ID is fulcrum_id")
+        return 'fulcrum_id'
+
+    # otherwise check remaining properties for any sort of ID
+    # this is probably not a good idea in the long run since ID
+    # may come from change set or parent ID
+    for property in properties:
         if '_id' in property or property in ['fid', 'id']:
+            if properties.get(property) is None:
+                # if the value is None keep looking
+                continue
             logger.debug("Feature ID is {0}".format(property))
             return property
     logger.debug("Feature ID defaulting to {0}".format(default_id))
@@ -1389,7 +1420,10 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
 
     if not layer:
         # Publish remote layer
-        layer = cat.publish_featuretype(layer_name.lower(), datastore, srs, srs=srs)
+        try:
+            layer = cat.publish_featuretype(layer_name.lower(), datastore, srs, srs=srs)
+        except Exception as e:
+            nearsight_status["status"] = "error publishing feature layer"
         return layer, True
     else:
         return layer, False
