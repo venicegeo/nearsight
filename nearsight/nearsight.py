@@ -213,7 +213,7 @@ def process_nearsight_data(f, request=None):
                     if upload_geojson(file_path=os.path.abspath(os.path.join(folder, filename)), request=request):
                         layers += [os.path.splitext(filename)[0]]
                     else:
-                        return None
+                        return []
         shutil.rmtree(os.path.splitext(file_path)[0])
     return layers
 
