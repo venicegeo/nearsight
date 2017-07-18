@@ -57,7 +57,17 @@ def layer_source_download(request):
             layer = Layer.objects.get(layer_name=layer_name)
         except ObjectDoesNotExist:
             return HttpResponse("Layer: "+layer+" does not exist.", status=400)
-        zip_file = open(layer.layer_source, 'rb')
+
+        # check for old layers from previous migrations where the source was not recorded
+        if layer.layer_source == "Unknown":
+            return HttpResponse("Layer: "+layer+" returned an uknown source", status=400)
+
+        # make sure the file exists on disk
+        try:
+            zip_file = open(layer.layer_source, 'rb')
+        except:
+            return HttpResponse("Layer: "+layer+" source could not be found on disk", status=400)
+
         zip_filename_toks = layer.layer_source.split('/')
         zip_filename = zip_filename_toks[len(zip_filename_toks)-1]
         response = HttpResponse(FileWrapper(zip_file), content_type='application/zip')
