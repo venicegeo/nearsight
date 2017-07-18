@@ -40,7 +40,8 @@ nearsight_status = {"status": ""}
 
 class NearSight:
 
-
+    # Note: Currently this method is not called anywhere, if it is needed in the future it will need to be modified
+    # since it theoretically can create a layer.
     @staticmethod
     def ensure_layer(layer_name=None, layer_id=None):
         """
@@ -203,6 +204,7 @@ def process_nearsight_data(f, request=None):
         for folder, subs, files in os.walk(unzip_path):
             for filename in files:
                 logger.debug('Nearsight scanning file: {0} for .geojson extension.'.format(filename))
+                #print('WTFFFFFFF {}'.format(filename))
                 if '.geojson' in filename:
                     if 'changesets' in filename:
                         # Changesets aren't implemented here, they need to be either handled with this file, and/or
@@ -210,7 +212,8 @@ def process_nearsight_data(f, request=None):
                         continue
                     logger.info("Uploading the geojson file: {}".format(os.path.abspath(os.path.join(folder, filename))))
                     nearsight_status["status"] = "Uploading the geojson file: {}".format(os.path.abspath(os.path.join(folder, filename)))
-                    if upload_geojson(file_path=os.path.abspath(os.path.join(folder, filename)), request=request):
+
+                    if upload_geojson(zip_path = file_path, file_path=os.path.abspath(os.path.join(folder, filename)), request=request):
                         layers += [os.path.splitext(filename)[0]]
                     else:
                         return []
@@ -271,7 +274,7 @@ def unzip_file(file_path):
     return unzip_path
 
 
-def upload_geojson(file_path=None, geojson=None, request=None):
+def upload_geojson(zip_path=None, file_path=None, geojson=None, request=None):
     """
 
     Args:
@@ -315,14 +318,13 @@ def upload_geojson(file_path=None, geojson=None, request=None):
     count = 0
     total = len(features)
     file_basename = os.path.splitext(os.path.basename(file_path))[0]
-    layer, created = write_layer(name=file_basename)
+    layer, created = write_layer(name=file_basename, layer_source_zip=zip_path)
     media_keys = get_update_layer_media_keys(media_keys=find_media_keys(features), layer=layer)
+
     field_map = get_field_map(features)
     prototype = get_prototype(field_map)
 
     id_field = get_feature_id_fieldname(features[0])
-    #logger.error("feature id is "+id_field)
-    #return
 
     nearsight_id = get_nearsight_id_fieldname()
     global nearsight_status
@@ -451,7 +453,7 @@ def get_update_layer_media_keys(media_keys=None, layer=None):
         return layer_media_keys
 
 
-def write_layer(name, layer_id='', date=0, media_keys=None):
+def write_layer(name, layer_id='', date=0, layer_source_zip=None, media_keys=None):
     """
     Args:
         name: An SQL compatible string.
@@ -473,6 +475,7 @@ def write_layer(name, layer_id='', date=0, media_keys=None):
         try:
             layer, layer_created = Layer.objects.get_or_create(layer_name=layer_name,
                                                                layer_uid=layer_id,
+                                                               layer_source=layer_source_zip,
                                                                defaults={'layer_date': int(date),
                                                                          'layer_media_keys': json.dumps(media_keys)})
             return layer, layer_created

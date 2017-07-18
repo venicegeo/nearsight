@@ -132,8 +132,9 @@ class Asset(models.Model):
 class Layer(models.Model):
     """Structure to hold information about layers."""
     layer_name = models.CharField(max_length=100, primary_key=True)
-    layer_uid = models.CharField(max_length=100)
+    layer_uid = models.CharField(max_length=100, default="Unknown")
     layer_date = models.IntegerField(default=0)
+    layer_source = models.CharField(max_length=256)
     layer_media_keys = models.CharField(max_length=2000, default="{}")
 
     class Meta:

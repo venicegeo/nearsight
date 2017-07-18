@@ -17,7 +17,13 @@ from .forms import UploadNearSightData
 from .filters.run_filters import check_filters
 from django.http import HttpResponse
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
+from wsgiref.util import FileWrapper
+
 from .nearsight import nearsight_status
+from .models import Layer
+
+
 import json
 import logging
 
@@ -40,6 +46,24 @@ def geojson(request):
     if not geojson_dict:
         return HttpResponse("No layer exists, or a layer was not specified.", status=400)
     return HttpResponse(json.dumps(geojson_dict), content_type="application/json")
+
+
+def layer_source_download(request):
+    if request.method == 'GET':
+        if 'layer' not in request.GET:
+            return HttpResponse("No layer was specified.", status=400)
+        try:
+            layer_name = request.GET.get('layer', '')
+            layer = Layer.objects.get(layer_name=layer_name)
+        except ObjectDoesNotExist:
+            return HttpResponse("Layer: "+layer+" does not exist.", status=400)
+        zip_file = open(layer.layer_source, 'rb')
+        zip_filename_toks = layer.layer_source.split('/')
+        zip_filename = zip_filename_toks[len(zip_filename_toks)-1]
+        response = HttpResponse(FileWrapper(zip_file), content_type='application/zip')
+        response['Content-Disposition'] = 'attachment; filename="%s"' % zip_filename
+        return response
+    return HttpResponse("Invalid request method: "+request.method, status=400)
 
 
 def upload(request):
