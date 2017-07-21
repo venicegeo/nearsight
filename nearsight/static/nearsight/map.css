@@ -57,6 +57,19 @@
             display: block;
 			top: 60px;
         }
+		#nearsightStatusLogContainer{
+			position: absolute;
+            height: 80px;
+			width: 470px;
+            display: block;
+			top: 80px;
+        }
+		#nearsightStatusLog {
+			resize: vertical;
+			overflow-y: auto;
+			width: 100%;
+		}
+
         #uploadFormButton {
             display: block;
             width: 100%;

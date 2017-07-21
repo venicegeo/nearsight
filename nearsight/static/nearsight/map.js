@@ -43,7 +43,9 @@
 
 		//id to keep track of interval function for retrieving nearsight status
 		var nearsightStatusIntervalId = -1;
-		
+
+		var nearsightStatusLog = '';
+
 		// Create divisions in the layer control //
 		var overlays = {
 			"NearSight Layers": layers,
@@ -765,6 +767,11 @@
 					//display messages
 					$('#nearsightStatus').html(result["status"]);
 
+					//update the log
+					if(nearsightStatusLog.indexOf(result["status"]) == -1)
+						nearsightStatusLog = result["status"] + '\n' + nearsightStatusLog;
+					$('#nearsightStatusLog').val(nearsightStatusLog);
+
 					//update progress bard
 					if(typeof result["progress"] != "undefined" && result["progress"] != null) {
 						if(result["progress"]["total"] == 0)
@@ -782,7 +789,15 @@
 						//hide the turning gear
 						$('#waiting').css("visibility", "hidden");
 						clearInterval(nearsightStatusIntervalId);
+					} else if ( result["status"].indexOf('Success') != -1) {
+						$('#nearsightStatus').css('color', 'green');
+						//hide the turning gear
+						$('#waiting').css("visibility", "hidden");
+						clearInterval(nearsightStatusIntervalId);
+					} else {
+						$('#nearsightStatus').css('color', 'black');
 					}
+
 				}
 			});
 

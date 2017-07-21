@@ -69,8 +69,14 @@
 				{% csrf_token %}
             </div>
         </form>
-        <progress id='progress' value="0.0" max="1.0"></progress>
+		<div>
+        	<progress id='progress' value="0.0" max="1.0"></progress>
+		</div>
 		<div id='nearsightStatus'></div>
+		<div id ="nearsightStatusLogContainer">
+			Status Log
+			<textarea id ="nearsightStatusLog" readonly></textarea>
+		</div>
     </div>
 
 
