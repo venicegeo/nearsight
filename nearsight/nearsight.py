@@ -15,6 +15,7 @@
 from dateutil import parser
 import requests
 import json
+import csv
 from django.conf import settings
 from .models import Layer, get_data_dir
 import time
@@ -204,19 +205,28 @@ def process_nearsight_data(f, request=None):
         for folder, subs, files in os.walk(unzip_path):
             for filename in files:
                 logger.debug('Nearsight scanning file: {0} for .geojson extension.'.format(filename))
-                #print('WTFFFFFFF {}'.format(filename))
                 if '.geojson' in filename:
                     if 'changesets' in filename:
                         # Changesets aren't implemented here, they need to be either handled with this file, and/or
                         # handled implicitly with geogig.
                         continue
-                    logger.info("Uploading the geojson file: {}".format(os.path.abspath(os.path.join(folder, filename))))
-                    nearsight_status["status"] = "Uploading the geojson file: {}".format(os.path.abspath(os.path.join(folder, filename)))
+                    geojson_file_loc = os.path.abspath(os.path.join(folder, filename))
+                    logger.info("Uploading the geojson file: {}".format(geojson_file_loc))
+                    nearsight_status["status"] = "Uploading the geojson file: {}".format(geojson_file_loc)
 
-                    if upload_geojson(zip_path = file_path, file_path=os.path.abspath(os.path.join(folder, filename)), request=request):
+                    if upload_geojson(zip_path = file_path, file_path=geojson_file_loc, request=request):
                         layers += [os.path.splitext(filename)[0]]
                     else:
                         return []
+                if '.csv' in filename:
+                    csv_file_loc = os.path.abspath(os.path.join(folder, filename))
+                    logger.info("Uploading the csv file: {}".format(csv_file_loc))
+                    nearsight_status["status"] = "Uploading the csv file: {}".format(csv_file_loc)
+                    if upload_csv(zip_path = file_path, file_path=csv_file_loc, request=request):
+                        layers += [os.path.splitext(filename)[0]]
+                    else:
+                        return []
+
         shutil.rmtree(os.path.splitext(file_path)[0])
     return layers
 
@@ -401,7 +411,103 @@ def upload_geojson(zip_path=None, file_path=None, geojson=None, request=None):
         nearsight_status["status"] = "updating GeoNode layers..."
         update_geonode_layers(gs_layer, request=request)
     else:
-        nearsight_status["status"] = "upload to GeoServer failed"
+        nearsight_status["status"] = "Error: upload to GeoServer failed"
+        return False
+    nearsight_status["status"] = "Success: all operations complete"
+    return True
+
+
+def upload_csv(zip_path=None, file_path=None, geojson=None, request=None):
+    """
+
+    Args:
+        file_path: The full path of a file containing a csv.
+        csv: the actual csv to be parsed and converted to geojson.
+
+    Returns:
+        True if every step successfully completes.
+
+    """
+
+    # first serialize the layer
+    file_basename = os.path.splitext(os.path.basename(file_path))[0]
+    media = {"photos": "photos", "audio": "audio", "videos": "videos"}
+    layer, created = write_layer(name=file_basename, media_keys=media, layer_source_zip=zip_path)
+
+    # need to open the csv and write each feature to the feature table
+    # need geometry, type, and properties as values
+    nearsight_id = get_nearsight_id_fieldname()
+    col_headers = []
+    features_list = []
+
+    with open(file_path, 'rb') as csvfile:
+        csv_reader = csv.reader(csvfile, delimiter=',', quotechar='"')
+        row_count = 0
+        total = sum(1 for rows in csv_reader)
+        nearsight_status["status"] = "Reading features from file"
+        for row in csv_reader:
+            template_feature = {"type": "Feature",
+                                "geometry": {"type": "Point", "coordinates": []},
+                                "properties": {}}
+            col_count = 0
+            for col in row:
+                if row_count == 0:
+                    col_headers.append(col)
+                else:
+                    if col_headers[col_count] == 'PRODUCT_ID':
+                        template_feature['properties'][nearsight_id] = col
+                    elif col_headers[col_count] == 'PHOTO_VIDEO':
+                        # check if the item is photo or video and store the name (it will always be the same as the id)
+                        asset_id = template_feature['properties'][nearsight_id]
+
+                        if 'p' in col or 'P' in col:
+                            template_feature['properties']['photos'] = asset_id
+                            asset, created = write_asset_from_file(asset_id, 'photos', os.path.dirname(file_path))
+                            template_feature['properties']['photos_url'] = asset.asset_data.url
+                        if 'v' in col or 'V' in col:
+                            template_feature['properties']['videos'] = asset_id
+                            asset, created = write_asset_from_file(asset_id, 'videos', os.path.dirname(file_path))
+                            template_feature['properties']['videos_url'] = asset.asset_data.url
+                    else:
+                        template_feature['properties'][col_headers[col_count]] = col
+                col_count += 1
+
+            if row_count != 0 and template_feature['properties'][nearsight_id] != '':
+                # set the position based on lat lon we read
+                template_feature['geometry']['coordinates'] = [template_feature['properties']['LON'], template_feature['properties']['LAT']]
+                features_list.append(template_feature)
+                nearsight_status["status"] = "writing feature: {0} of {1} for layer: {2}".format(row_count+1, total, layer.layer_name)
+                write_feature(template_feature.get('properties').get(nearsight_id),
+                    1,
+                    layer,
+                    template_feature)
+                nearsight_status["progress"]["completed"] = row_count
+            row_count += 1
+
+    # reset progress indicator
+    nearsight_status["progress"] = { "total": 0, "completed": 0 }
+
+    try:
+        database_alias = 'nearsight'
+        connections[database_alias]
+    except ConnectionDoesNotExist:
+        database_alias = None
+
+    table_name = layer.layer_name
+    nearsight_status["status"] = "uploading features to GeoServer..."
+    if upload_to_db(features_list, table_name, media, database_alias=database_alias):
+        nearsight_status["status"] = "publishing layer to GeoServer ..."
+        gs_layer, _ = publish_layer(table_name, database_alias=database_alias)
+        if gs_layer is None:
+            nearsight_status["status"] = "Error: publishing layer to GeoServer failed"
+            return False
+        nearsight_status["status"] = "updating GeoNode layers..."
+        update_geonode_layers(gs_layer, request=request)
+    else:
+        nearsight_status["status"] = "Error: upload to GeoServer failed"
+        return False
+
+    nearsight_status["status"] = "Success: all operations complete"
     return True
 
 
