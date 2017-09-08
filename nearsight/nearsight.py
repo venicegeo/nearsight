@@ -430,6 +430,9 @@ def upload_csv(zip_path=None, file_path=None, geojson=None, request=None):
     """
 
     # first serialize the layer
+    global nearsight_status
+    nearsight_status["progress"] = { "total": 0, "completed": 0 }
+
     file_basename = os.path.splitext(os.path.basename(file_path))[0]
     media = {"photos": "photos", "audio": "audio", "videos": "videos"}
     layer, created = write_layer(name=file_basename, media_keys=media, layer_source_zip=zip_path)
@@ -444,7 +447,10 @@ def upload_csv(zip_path=None, file_path=None, geojson=None, request=None):
         csv_reader = csv.reader(csvfile, delimiter=',', quotechar='"')
         row_count = 0
         total = sum(1 for rows in csv_reader)
+        csvfile.seek(0)
+        nearsight_status["progress"]["total"] = total
         nearsight_status["status"] = "Reading features from file"
+
         for row in csv_reader:
             template_feature = {"type": "Feature",
                                 "geometry": {"type": "Point", "coordinates": []},
@@ -471,7 +477,6 @@ def upload_csv(zip_path=None, file_path=None, geojson=None, request=None):
                     else:
                         template_feature['properties'][col_headers[col_count]] = col
                 col_count += 1
-
             if row_count != 0 and template_feature['properties'][nearsight_id] != '':
                 # set the position based on lat lon we read
                 template_feature['geometry']['coordinates'] = [template_feature['properties']['LON'], template_feature['properties']['LAT']]
@@ -482,6 +487,7 @@ def upload_csv(zip_path=None, file_path=None, geojson=None, request=None):
                     layer,
                     template_feature)
                 nearsight_status["progress"]["completed"] = row_count
+            logger.debug("found row "+str(row_count))
             row_count += 1
 
     # reset progress indicator
@@ -614,6 +620,7 @@ def write_feature(key, version, layer, feature_data):
                                                                  defaults={'layer': layer,
                                                                            'feature_data': json.dumps(feature_data)})
         return feature
+
 
 
 def get_feature_id_fieldname(feature):
