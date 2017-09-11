@@ -451,6 +451,7 @@ def upload_csv(zip_path=None, file_path=None, geojson=None, request=None):
         nearsight_status["progress"]["total"] = total
         nearsight_status["status"] = "Reading features from file"
 
+        is_fulcrum_csv = False
         for row in csv_reader:
             template_feature = {"type": "Feature",
                                 "geometry": {"type": "Point", "coordinates": []},
@@ -461,8 +462,30 @@ def upload_csv(zip_path=None, file_path=None, geojson=None, request=None):
                     col_headers.append(col)
                 else:
                     if col_headers[col_count] == 'PRODUCT_ID':
+                         # get ID and version from class'd csv
                         template_feature['properties'][nearsight_id] = col
+                        # TODO Below is a hack since these csv files do not contain a version so we just use the ID
+                        template_feature['properties']['version'] = col
+                    elif col_headers[col_count] == 'fulcrum_id':
+                        # handle getting ID from fulcrum based csv
+                        is_fulcrum_csv = True
+                        template_feature['properties'][nearsight_id] = col
+                    elif col_headers[col_count] == 'version':
+                        # handle getting version from fulcrum based csv
+                        template_feature['properties']['version'] = col
+                    elif col_headers[col_count] == 'photos_url':
+                        # don't use the urls from the file because we will be writing new ones
+                        continue
+                    elif col_headers[col_count] == 'photos':
+                        # handle getting media from fulcrum based csv
+                        template_feature['properties'][col_headers[col_count]] = col
+                        photos_list = col.split(",")
+                        template_feature['properties']['photos_url'] = []
+                        for photo in photos_list:
+                            asset, created = write_asset_from_file(photo, 'photos', os.path.dirname(file_path))
+                            template_feature['properties']['photos_url'].append(asset.asset_data.url)
                     elif col_headers[col_count] == 'PHOTO_VIDEO':
+                        # get media from class'd csv
                         # check if the item is photo or video and store the name (it will always be the same as the id)
                         asset_id = template_feature['properties'][nearsight_id]
 
@@ -479,7 +502,10 @@ def upload_csv(zip_path=None, file_path=None, geojson=None, request=None):
                 col_count += 1
             if row_count != 0 and template_feature['properties'][nearsight_id] != '':
                 # set the position based on lat lon we read
-                template_feature['geometry']['coordinates'] = [template_feature['properties']['LON'], template_feature['properties']['LAT']]
+                if is_fulcrum_csv is not True:
+                    template_feature['geometry']['coordinates'] = [template_feature['properties']['LON'], template_feature['properties']['LAT']]
+                else:
+                    template_feature['geometry']['coordinates'] = [template_feature['properties']['longitude'], template_feature['properties']['latitude']]
                 features_list.append(template_feature)
                 nearsight_status["status"] = "writing feature: {0} of {1} for layer: {2}".format(row_count+1, total, layer.layer_name)
                 write_feature(template_feature.get('properties').get(nearsight_id),
