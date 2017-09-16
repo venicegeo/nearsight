@@ -1,6 +1,8 @@
 # nearsight
 
-This is a django application which enables importing of nearsight data into GeoNode. 
+This is a django application which enables importing of nearsight data into GeoNode. Zip archives are the only supported format which
+may include geojson or csv data. File names for the csv and geojson data as well as any embedded directories must be purely alphanumeric i.e.
+only letters numbers and underscore (no spaces).
 
 
 Since Maploom supports viewing images attached to a features in a web client, it can be used to view NearSight App data.
