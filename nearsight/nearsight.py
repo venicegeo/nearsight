@@ -203,6 +203,10 @@ def process_nearsight_data(f, request=None):
         unzip_path = unzip_file(file_path)
         logger.info("Reading files from: {0}".format(unzip_path))
         for folder, subs, files in os.walk(unzip_path):
+            # archives on MACOSX create annoying metadata folders, exclude them if the user
+            # forgot to remove them ahead of time
+            if "__MACOSX" in folder:
+                continue
             for filename in files:
                 logger.debug('Nearsight scanning file: {0} for .geojson extension.'.format(filename))
                 if '.geojson' in filename:
@@ -1110,13 +1114,13 @@ def ogr2ogr_geojson_to_db(geojson_file, database_alias=None, table=None):
         options = ['-update', '-append']
     else:
         return True
-
+    quoted_table_name = "'" + table + "'"
     execute_append = ['ogr2ogr',
                       '-f', db_format,
                       '-skipfailures',
                       dest,
                       '{}'.format(geojson_file),
-                      '-nln', table] + options
+                      '-nln', quoted_table_name] + options
     logger.debug("Executing: {0}".format(' '.join(execute_append)))
     proc = subprocess.Popen(' '.join(execute_append), shell=True, executable='/bin/bash',
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -1286,7 +1290,7 @@ def check_db_for_feature(feature, db_features=None):
         # While it is unlikely that the database would have a newer version than the one being presented.
         # Older versions should be rejected.  If they fail to be handled at least they won't overwrite a
         # more current value.
-        if db_features.get(nearsight_id).get('version') > feature.get('properties').get('version'):
+        if int(db_features.get(nearsight_id).get('version')) > int(feature.get('properties').get('version')):
             return "reject"
         feature['ogc_fid'] = db_features.get(nearsight_id).get('ogc_fid')
         return feature
@@ -1359,15 +1363,26 @@ def update_db_features(features, layer, database_alias=None):
     Returns:
         None
     """
+    global nearsight_status
+    total = len(features)
+    nearsight_status["progress"] = { "total": total, "completed": 0 }
+    nearsight_status["status"] = "updating features on GeoServer"
+
+
     if not features or not layer:
-        logger.info("A feature or layer was not provided to update_db_features")
+        logger.info("A feature or layer was not provided to update_db_features...")
         return
     if type(features) != list:
         features = [features]
+    count = 0
     for feature in features:
+        count += 1
+        nearsight_status["progress"] = { "total": total, "completed": count }
+        nearsight_status["status"] = "updating GeoServer feature: {0} of {1}".format(count, total)
         update_db_feature(feature,
                           layer,
                           database_alias=database_alias)
+    nearsight_status["progress"] = { "total": 0, "completed": 0 }
 
 
 def update_db_feature(feature, layer, database_alias=None):
