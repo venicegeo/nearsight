@@ -468,8 +468,8 @@ def upload_csv(zip_path=None, file_path=None, geojson=None, request=None):
                     if col_headers[col_count] == 'PRODUCT_ID':
                          # get ID and version from class'd csv
                         template_feature['properties'][nearsight_id] = col
-                        # TODO Below is a hack since these csv files do not contain a version so we just use the ID
-                        template_feature['properties']['version'] = col
+                        # TODO Below is a hack since these csv files do not contain a version so we just use a static number
+                        template_feature['properties']['version'] = '1'
                     elif col_headers[col_count] == 'fulcrum_id':
                         # handle getting ID from fulcrum based csv
                         is_fulcrum_csv = True
@@ -507,18 +507,43 @@ def upload_csv(zip_path=None, file_path=None, geojson=None, request=None):
             if row_count != 0 and template_feature['properties'][nearsight_id] != '':
                 # set the position based on lat lon we read
                 if is_fulcrum_csv is not True:
-                    template_feature['geometry']['coordinates'] = [template_feature['properties']['LON'], template_feature['properties']['LAT']]
+                    template_feature['geometry']['coordinates'] = [float(template_feature['properties']['LON']), float(template_feature['properties']['LAT'])]
                 else:
-                    template_feature['geometry']['coordinates'] = [template_feature['properties']['longitude'], template_feature['properties']['latitude']]
+                    template_feature['geometry']['coordinates'] = [float(template_feature['properties']['longitude']), float(template_feature['properties']['latitude'])]
                 features_list.append(template_feature)
-                nearsight_status["status"] = "writing feature: {0} of {1} for layer: {2}".format(row_count+1, total, layer.layer_name)
-                write_feature(template_feature.get('properties').get(nearsight_id),
+                nearsight_status["progress"]["completed"] = row_count
+            row_count += 1
+
+    # reset progress indicator
+    nearsight_status["progress"] = { "total": 0, "completed": 0 }
+
+    # filter the features we just collected from the csv
+    # first put them in geojson format
+    feature_collection_geojson = {"type": "FeatureCollection"}
+    feature_collection_geojson["features"] = features_list
+    filtered_features, filtered_count = filter_features(feature_collection_geojson)
+    logger.debug("features filtered "+str(filtered_features))
+
+    if filtered_features.get('features'):
+        features_list = filtered_features.get('features')
+    else:
+        logger.info("Upload for file_path {}, contained no features.".format(file_path))
+        return False
+
+    if type(features_list) != list:
+        features_list = [features_list]
+
+    total = len(features_list)
+    row_count = 0
+    nearsight_status["progress"]["total"] = row_count
+    for feature in features_list:
+        row_count += 1
+        nearsight_status["progress"]["completed"] = row_count
+        nearsight_status["status"] = "writing feature: {0} of {1} for layer: {2}".format(row_count, total, layer.layer_name)
+        write_feature(feature.get('properties').get(nearsight_id),
                     1,
                     layer,
-                    template_feature)
-                nearsight_status["progress"]["completed"] = row_count
-            logger.debug("found row "+str(row_count))
-            row_count += 1
+                    feature)
 
     # reset progress indicator
     nearsight_status["progress"] = { "total": 0, "completed": 0 }

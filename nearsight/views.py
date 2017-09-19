@@ -128,4 +128,6 @@ def layers(request):
 
 def status_request(request):
     if request.method == 'GET':
-        return HttpResponse(json.dumps(nearsight_status), content_type="application/json")
+        response = HttpResponse(json.dumps(nearsight_status), content_type="application/json")
+        nearsight_status["status"] = ""
+        return response
