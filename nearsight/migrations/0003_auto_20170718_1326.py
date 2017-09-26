@@ -17,9 +17,4 @@ class Migration(migrations.Migration):
             field=models.CharField(default='Unknown', max_length=256),
             preserve_default=False,
         ),
-        migrations.AlterField(
-            model_name='layer',
-            name='layer_uid',
-            field=models.CharField(default=None, max_length=100),
-        ),
     ]
