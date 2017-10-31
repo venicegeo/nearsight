@@ -26,6 +26,7 @@ from .models import Layer
 
 import json
 import logging
+import re
 
 logger = logging.getLogger(__file__)
 
@@ -62,8 +63,12 @@ def layer_source_download(request):
         if layer.layer_source == "Unknown":
             return HttpResponse("Layer: "+layer+" returned an uknown source", status=400)
 
-        # make sure the file exists on disk
+        # make sure the file exists on disk and is a safe filename
+        unsafe_path_patterns = "(\./|/\.|\.\.|\.\\\|\\\(\.)|\?)"
+        unsafe_reg = re.compile(unsafe_path_patterns)
         try:
+            if unsafe_reg.search(layer.layer_source) is not None:
+                return HttpResponse("Layer: "+layer+" source could not be found on disk", status=400)
             zip_file = open(layer.layer_source, 'rb')
         except:
             return HttpResponse("Layer: "+layer+" source could not be found on disk", status=400)
