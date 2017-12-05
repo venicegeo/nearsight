@@ -23,7 +23,7 @@ setup(
                       'boto3',
                       'pytz',
                       'Pillow',
-                      'django',
+                      'Django >=1.8.7, < 1.9a0',
                       'gsconfig',
                       'requests',
                       'shapely',
