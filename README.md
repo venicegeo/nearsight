@@ -124,6 +124,31 @@ Example:
     }
 ```
 
+##### INSTALLING IN BOUNDLESS EXCHANGE'S DOCKER SETUP: (Optional)
+If you're using the Docker setup in Exchange, after cloning the required Exchange repos there are several more steps needed to make the NearSight application operational with Exchange.  Before running ‘docker-compose up -d’ you will need to add the following environment variables to ‘docker/home/settings.sh’ in the exchange repo.
+
+```
+    export NEARSIGHT_ENABLED=True
+    export NEARSIGHT_UPLOAD_PATH=/opt/boundless/exchange/.storage/nearsight
+```  
+Run ‘docker-compose up -d’ to build (if first time) and launch containers and Nearsight should be enabled now.
+
+Helpful Docker commands:
+```
+    docker exec -it <container name> /bin/bash (to connect to container)
+    docker ps (to list containers)
+    docker images (to list built images)
+    docker-compose down --rmi all (shut down all containers and remove images)
+    docker logs -f --tail <num lines> <container name>
+```
+Helpful python commands:
+```
+Activate virtual env by using command `source /env/bin/activate` (after connecting to exchange container)
+To make migrations run ‘python manage.py makemigrations’
+To run migrations to update GeoNode tables with NearSight tables: ‘python manage.py migrate’
+
+```
+
 ## Usage
 Once up and running you need to configure filters and import data.
 
