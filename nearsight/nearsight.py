@@ -1547,7 +1547,7 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
     user = conn.settings_dict.get('USER')
     srs = "EPSG:4326"
     database = conn.settings_dict.get('NAME')
-    datastore_name = database
+    datastore_name = ogc_server.get('DATASTORE')
 
     if not password:
         logger.warn("Geoserver can not be updated without a database password provided in the settings file.")
